@@ -35,15 +35,15 @@ private fun createMap(context: Context): MapView {
     map.setMultiTouchControls(true)
     map.controller.setZoom(17.0)
     // Temporary center; exact site coordinates will be inserted after georeferencing.
-    map.controller.setCenter(GeoPoint(55.75, 37.62))
+    map.controller.setCenter(GeoPoint(55.51326875, 37.594689))
 
     val r1 = Marker(map).apply {
-        position = GeoPoint(55.7505, 37.6195)
+        position = GeoPoint(55.513411, 37.594664)
         title = "Wi-Fi роутер 1"
         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
     }
     val r2 = Marker(map).apply {
-        position = GeoPoint(55.7497, 37.6210)
+        position = GeoPoint(55.513220, 37.594773)
         title = "Wi-Fi роутер 2"
         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
     }
@@ -53,10 +53,10 @@ private fun createMap(context: Context): MapView {
     // Example boundary placeholder. Real coordinates will come from the user's map.
     val boundary = Polygon(map).apply {
         points = listOf(
-            GeoPoint(55.7510, 37.6188),
-            GeoPoint(55.7510, 37.6215),
-            GeoPoint(55.7492, 37.6215),
-            GeoPoint(55.7492, 37.6188)
+            GeoPoint(55.513380, 37.594413),
+            GeoPoint(55.513459, 37.594642),
+            GeoPoint(55.513159, 37.594978),
+            GeoPoint(55.513077, 37.594723)
         )
         fillColor = Color.argb(35, 255, 0, 0)
         strokeColor = Color.RED
