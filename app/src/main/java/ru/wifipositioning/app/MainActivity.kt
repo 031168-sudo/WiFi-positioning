@@ -298,7 +298,7 @@ class MainActivity : Activity() {
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = if (small) 12f else 14f
             paint.typeface = Typeface.DEFAULT_BOLD
-            canvas.drawText(text, p.x.toFloat(), p.y.toFloat() + paint.textSize/3f, p.x.toFloat(), p.y.toFloat(), paint)
+            canvas.drawText(text, p.x.toFloat(), p.y.toFloat() + paint.textSize/3f, paint)
         }
     }
 
