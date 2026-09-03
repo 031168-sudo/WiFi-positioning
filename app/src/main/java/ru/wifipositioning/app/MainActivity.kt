@@ -53,7 +53,7 @@ class MainActivity : Activity() {
             text = "Спутник"
             textSize = 13f
             setOnClickListener {
-                val satellite = map.tileProvider.tileSource.name == satelliteSource.name
+                val satellite = map.tileProvider.tileSource.name() == satelliteSource.name()
                 map.setTileSource(if (satellite) TileSourceFactory.MAPNIK else satelliteSource)
                 text = if (satellite) "Спутник" else "Карта"
                 map.invalidate()
