@@ -85,7 +85,7 @@ class MainActivity : Activity() {
         root.addView(p,FrameLayout.LayoutParams(-1,dp(245),Gravity.BOTTOM).apply{bottomMargin=dp(64)})
     }
     private fun addBottom(root:FrameLayout){
-        val n=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER;background=Color.rgb(10,13,20)}
+        val n=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER;setBackgroundColor(Color.rgb(10,13,20))}
         arrayOf("⌖\nКарта","⠿\nКалибровка","⊙\nТочки","⌁\nИстория","☰\nЕщё").forEachIndexed{i,s->n.addView(TextView(this).apply{text=s;textSize=10f;gravity=Gravity.CENTER;setTextColor(if(i==0)Color.rgb(75,145,255) else Color.rgb(155,162,175))},LinearLayout.LayoutParams(0,dp(64),1f))}
         root.addView(n,FrameLayout.LayoutParams(-1,dp(64),Gravity.BOTTOM))
     }
