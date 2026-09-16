@@ -38,5 +38,6 @@ jobs:
             echo "APK unchanged, nothing to commit"
           else
             git commit -m "Commit built debug APK [skip ci]"
+            git pull --rebase origin "${GITHUB_REF_NAME}"
             git push
           fi
