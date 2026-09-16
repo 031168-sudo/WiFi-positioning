@@ -21,8 +21,13 @@ jobs:
           gradle-version: "8.10"
       - name: Build debug APK
         run: gradle assembleDebug
-      - name: Upload APK
+      - name: Upload WiFi Positioning APK
         uses: actions/upload-artifact@v4
         with:
           name: wifi-positioning-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload Bitcoin Price APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bitcoin-price-debug
+          path: bitcoinapp/build/outputs/apk/debug/bitcoinapp-debug.apk

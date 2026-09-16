@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "WiFiPositioning"
 include(":app")
+include(":bitcoinapp")
