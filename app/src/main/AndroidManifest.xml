@@ -3,11 +3,13 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application android:theme="@style/AppTheme" android:fitsSystemWindows="true" android:label="WiFi Positioning">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <activity android:name=".VoiceMonitorActivity" android:exported="false" android:label="Резонанс"/>
     </application>
 </manifest>
