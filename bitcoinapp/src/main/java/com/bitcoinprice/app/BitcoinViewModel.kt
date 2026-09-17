@@ -34,11 +34,15 @@ class BitcoinViewModel : ViewModel() {
         _state.value = BitcoinUiState.Loading
         viewModelScope.launch {
             try {
-                val current = withContext(Dispatchers.IO) { repository.fetchCurrentPrice() }
+                val currentPrice = withContext(Dispatchers.IO) { repository.fetchCurrentPrice() }
                 val history = withContext(Dispatchers.IO) { repository.fetchFullHistory() }
+                val previousClose = history.getOrNull(history.size - 2)?.price
+                val changePercent24h = if (previousClose != null && previousClose > 0) {
+                    (currentPrice - previousClose) / previousClose * 100
+                } else 0.0
                 _state.value = BitcoinUiState.Success(
-                    priceUsd = current.usd,
-                    changePercent24h = current.changePercent24h,
+                    priceUsd = currentPrice,
+                    changePercent24h = changePercent24h,
                     history = history
                 )
             } catch (e: Exception) {
