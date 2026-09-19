@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.ConnectivityManager
-import android.net.MacAddress
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
@@ -51,6 +50,16 @@ class MonitorActivity : Activity() {
     private var cycleIndex = 0
     private var currentCallback: ConnectivityManager.NetworkCallback? = null
     private var running = true
+    private var throughputStarted = false
+
+    /**
+     * Some devices refuse app-initiated WifiNetworkSpecifier connections outright (onUnavailable
+     * within milliseconds, without ever showing the system's approval dialog). Retrying that in a
+     * tight loop hammers the Wi-Fi stack for nothing, so give up on it after a few refusals and
+     * fall back to measuring whichever network the phone is already connected to.
+     */
+    private var specifierRefusals = 0
+    private var specifierDisabled = false
 
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
@@ -114,7 +123,18 @@ class MonitorActivity : Activity() {
         setContentView(root)
 
         startRssiLoop()
-        startThroughputIfPermitted()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        CrashLog.logEvent(this, "MonitorActivity onResume")
+        // The throughput cycle deliberately does NOT start from onCreate: the system only accepts
+        // a WifiNetworkSpecifier request from an app it already considers foreground, and at
+        // onCreate time this activity isn't resumed yet, so the very first request gets refused.
+        if (!throughputStarted) {
+            throughputStarted = true
+            handler.postDelayed({ startThroughputIfPermitted() }, 1500)
+        }
     }
 
     /**
@@ -227,12 +247,55 @@ class MonitorActivity : Activity() {
 
     // --- Throughput: cycle a real connection through each target in turn ------------------
 
+    /** The Wi-Fi network the phone is already connected to, if any. */
+    @Suppress("DEPRECATION")
+    private fun currentWifiNetwork(): Network? = try {
+        cm.allNetworks.firstOrNull {
+            cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        }
+    } catch (_: Exception) {
+        null
+    }
+
+    @Suppress("DEPRECATION")
+    private fun connectedBssid(): String? = try {
+        wifi.connectionInfo?.bssid?.takeIf { it != "02:00:00:00:00:00" }
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun scheduleNextCycle(delayMs: Long = 5000) {
+        if (running) handler.postDelayed({ testNextThroughput() }, delayMs)
+    }
+
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun testNextThroughput() {
         if (!running || targets.isEmpty()) return
         val target = targets[cycleIndex % targets.size]
         cycleIndex++
         CrashLog.logEvent(this, "testNextThroughput -> ${target.ssid} (${target.bssid})")
+
+        // Fast path: if the phone is already on this network, measure straight over it. No
+        // reconnect, no system approval dialog, no special permission — this always works.
+        val wifiNetwork = currentWifiNetwork()
+        if (wifiNetwork != null && connectedBssid().equals(target.bssid, ignoreCase = true)) {
+            CrashLog.logEvent(this, "using already-connected network for ${target.ssid}")
+            setStatus(target.bssid, "тест скорости…", Color.rgb(80, 150, 255))
+            try {
+                io.execute { runSpeedTest(wifiNetwork, target) { scheduleNextCycle() } }
+            } catch (e: Exception) {
+                Log.e(TAG, "Could not start speed test for ${target.ssid}", e)
+                scheduleNextCycle()
+            }
+            return
+        }
+
+        if (specifierDisabled) {
+            setStatus(target.bssid, "подключитесь к сети вручную", Color.rgb(250, 190, 60))
+            scheduleNextCycle()
+            return
+        }
+
         setStatus(target.bssid, "подключение…", Color.rgb(250, 190, 60))
 
         // Requires a non-blank passphrase for any secured network. Missing/invalid credentials,
@@ -240,15 +303,16 @@ class MonitorActivity : Activity() {
         val password: String = target.password ?: ""
         if (!target.isOpen && password.isEmpty()) {
             setStatus(target.bssid, "нет пароля", Color.rgb(240, 80, 80))
-            handler.postDelayed({ testNextThroughput() }, 2000)
+            scheduleNextCycle()
             return
         }
 
         val request: NetworkRequest
         try {
+            // SSID only, no setBssid(): pinning the exact AP makes the request far more likely
+            // to be refused outright, and the SSID is enough to get connected for a speed test.
             val specifierBuilder = WifiNetworkSpecifier.Builder()
                 .setSsid(target.ssid)
-                .setBssid(MacAddress.fromString(target.bssid))
             if (!target.isOpen) {
                 if (target.isWpa3) specifierBuilder.setWpa3Passphrase(password)
                 else specifierBuilder.setWpa2Passphrase(password)
@@ -260,7 +324,7 @@ class MonitorActivity : Activity() {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to build network request for ${target.ssid}", e)
             setStatus(target.bssid, "ошибка: ${e.shortDescription()}", Color.rgb(240, 80, 80))
-            handler.postDelayed({ testNextThroughput() }, 2000)
+            scheduleNextCycle()
             return
         }
 
@@ -270,6 +334,7 @@ class MonitorActivity : Activity() {
             override fun onAvailable(network: Network) {
                 CrashLog.logEvent(this@MonitorActivity, "onAvailable ${target.ssid}")
                 if (!done.compareAndSet(false, true)) return
+                specifierRefusals = 0
                 setStatus(target.bssid, "тест скорости…", Color.rgb(80, 150, 255))
                 // onAvailable can still fire from the system after this screen is on its way
                 // out and the executor is already shut down — never let that crash the app.
@@ -277,13 +342,23 @@ class MonitorActivity : Activity() {
                     io.execute { runSpeedTest(network, target) { finishCycle(callback) } }
                 } catch (e: Exception) {
                     Log.e(TAG, "Could not start speed test for ${target.ssid}", e)
+                    finishCycle(callback)
                 }
             }
 
             override fun onUnavailable() {
                 CrashLog.logEvent(this@MonitorActivity, "onUnavailable ${target.ssid}")
                 if (!done.compareAndSet(false, true)) return
-                setStatus(target.bssid, "недоступно", Color.rgb(240, 80, 80))
+                specifierRefusals++
+                if (specifierRefusals >= MAX_SPECIFIER_REFUSALS) {
+                    specifierDisabled = true
+                    CrashLog.logEvent(this@MonitorActivity, "specifier disabled after $specifierRefusals refusals")
+                    targets.forEach {
+                        setStatus(it.bssid, "подключитесь к сети вручную", Color.rgb(250, 190, 60))
+                    }
+                } else {
+                    setStatus(target.bssid, "недоступно", Color.rgb(240, 80, 80))
+                }
                 finishCycle(callback)
             }
         }
@@ -296,7 +371,7 @@ class MonitorActivity : Activity() {
             currentCallback = null
             Log.e(TAG, "requestNetwork failed for ${target.ssid}", e)
             setStatus(target.bssid, "ошибка: ${e.shortDescription()}", Color.rgb(240, 80, 80))
-            handler.postDelayed({ testNextThroughput() }, 2000)
+            scheduleNextCycle()
         }
     }
 
@@ -349,7 +424,7 @@ class MonitorActivity : Activity() {
     private fun finishCycle(callback: ConnectivityManager.NetworkCallback) {
         try { cm.unregisterNetworkCallback(callback) } catch (_: IllegalArgumentException) {}
         if (currentCallback === callback) currentCallback = null
-        if (running) handler.postDelayed({ testNextThroughput() }, 2000)
+        scheduleNextCycle()
     }
 
     private fun setStatus(bssid: String, text: String, color: Int) {
@@ -392,6 +467,7 @@ class MonitorActivity : Activity() {
     companion object {
         private const val TAG = "WifiNetMonitor"
         private const val NEARBY_WIFI_PERMISSION_REQUEST = 77
+        private const val MAX_SPECIFIER_REFUSALS = 3
         private const val SPEED_TEST_URL = "https://speed.cloudflare.com/__down?bytes=10000000"
     }
 }

@@ -26,7 +26,9 @@ object CrashLog {
             val existing = prefs.getString(EVENTS_KEY, "") ?: ""
             val stamped = "${timeFormat.format(System.currentTimeMillis())}  $line"
             val updated = (existing + "\n" + stamped).takeLast(4000)
-            prefs.edit().putString(EVENTS_KEY, updated).apply()
+            // commit(), not apply(): when the OS kills the process outright the async write
+            // never lands, which is exactly the case this log exists to diagnose.
+            prefs.edit().putString(EVENTS_KEY, updated).commit()
         } catch (_: Exception) {
         }
     }
@@ -49,7 +51,7 @@ object CrashLog {
                 val trace = Log.getStackTraceString(throwable)
                 Log.e("WifiNetCrash", trace)
                 appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                    .edit().putString(KEY, trace).apply()
+                    .edit().putString(KEY, trace).commit()
             } catch (_: Exception) {
             }
             previousHandler?.uncaughtException(thread, throwable)
