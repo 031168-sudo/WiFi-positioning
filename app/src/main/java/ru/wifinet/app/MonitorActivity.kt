@@ -365,7 +365,9 @@ class MonitorActivity : Activity() {
         try {
             currentCallback = callback
             CrashLog.logEvent(this, "requestNetwork calling for ${target.ssid}")
-            cm.requestNetwork(request, callback, 15000)
+            // Passing our main-Looper handler makes the callbacks arrive on the main thread
+            // instead of ConnectivityThread.
+            cm.requestNetwork(request, callback, handler, 15000)
             CrashLog.logEvent(this, "requestNetwork returned for ${target.ssid}")
         } catch (e: Exception) {
             currentCallback = null
@@ -427,8 +429,11 @@ class MonitorActivity : Activity() {
         scheduleNextCycle()
     }
 
+    // NetworkCallback methods are delivered on ConnectivityManager's own ConnectivityThread, not
+    // on the main thread, and touching a view from there throws CalledFromWrongThreadException —
+    // so always hop to the main thread here rather than relying on every caller to remember.
     private fun setStatus(bssid: String, text: String, color: Int) {
-        statusViews[bssid]?.apply { this.text = text; setTextColor(color) }
+        handler.post { statusViews[bssid]?.apply { this.text = text; setTextColor(color) } }
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
