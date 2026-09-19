@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "WiFiPositioning"
+rootProject.name = "WiFiNet"
 include(":app")
