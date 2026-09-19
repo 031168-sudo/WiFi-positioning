@@ -54,6 +54,7 @@ class MonitorActivity : Activity() {
 
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
+        CrashLog.install(this)
         window.statusBarColor = Color.rgb(10, 13, 20)
         window.navigationBarColor = Color.rgb(10, 13, 20)
         wifi = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
@@ -262,7 +263,13 @@ class MonitorActivity : Activity() {
             override fun onAvailable(network: Network) {
                 if (!done.compareAndSet(false, true)) return
                 setStatus(target.bssid, "тест скорости…", Color.rgb(80, 150, 255))
-                io.execute { runSpeedTest(network, target) { finishCycle(callback) } }
+                // onAvailable can still fire from the system after this screen is on its way
+                // out and the executor is already shut down — never let that crash the app.
+                try {
+                    io.execute { runSpeedTest(network, target) { finishCycle(callback) } }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Could not start speed test for ${target.ssid}", e)
+                }
             }
 
             override fun onUnavailable() {

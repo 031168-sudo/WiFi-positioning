@@ -34,6 +34,14 @@ class MainActivity : Activity() {
 
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
+        CrashLog.install(this)
+        CrashLog.consumeLast(this)?.let { trace ->
+            AlertDialog.Builder(this)
+                .setTitle("Предыдущий запуск завершился ошибкой")
+                .setMessage(trace)
+                .setPositiveButton("OK", null)
+                .show()
+        }
         window.statusBarColor = Color.rgb(10, 13, 20)
         window.navigationBarColor = Color.rgb(10, 13, 20)
         wifi = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
