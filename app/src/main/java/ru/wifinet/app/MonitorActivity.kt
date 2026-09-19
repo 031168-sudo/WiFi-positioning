@@ -193,17 +193,33 @@ class MonitorActivity : Activity() {
         cycleIndex++
         setStatus(target.bssid, "подключение…", Color.rgb(250, 190, 60))
 
-        val specifierBuilder = WifiNetworkSpecifier.Builder()
-            .setSsid(target.ssid)
-            .setBssid(MacAddress.fromString(target.bssid))
-        if (!target.isOpen && !target.password.isNullOrEmpty()) {
-            if (target.isWpa3) specifierBuilder.setWpa3Passphrase(target.password)
-            else specifierBuilder.setWpa2Passphrase(target.password)
+        // Requires a non-blank passphrase for any secured network. Missing/invalid credentials,
+        // an odd BSSID, or an OEM quirk here must never crash the app — skip to the next target.
+        val password: String = target.password ?: ""
+        if (!target.isOpen && password.isEmpty()) {
+            setStatus(target.bssid, "нет пароля", Color.rgb(240, 80, 80))
+            handler.postDelayed({ testNextThroughput() }, 2000)
+            return
         }
-        val request = NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-            .setNetworkSpecifier(specifierBuilder.build())
-            .build()
+
+        val request: NetworkRequest
+        try {
+            val specifierBuilder = WifiNetworkSpecifier.Builder()
+                .setSsid(target.ssid)
+                .setBssid(MacAddress.fromString(target.bssid))
+            if (!target.isOpen) {
+                if (target.isWpa3) specifierBuilder.setWpa3Passphrase(password)
+                else specifierBuilder.setWpa2Passphrase(password)
+            }
+            request = NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                .setNetworkSpecifier(specifierBuilder.build())
+                .build()
+        } catch (e: Exception) {
+            setStatus(target.bssid, "ошибка настройки", Color.rgb(240, 80, 80))
+            handler.postDelayed({ testNextThroughput() }, 2000)
+            return
+        }
 
         val done = AtomicBoolean(false)
         lateinit var callback: ConnectivityManager.NetworkCallback
@@ -220,8 +236,14 @@ class MonitorActivity : Activity() {
                 finishCycle(callback)
             }
         }
-        currentCallback = callback
-        cm.requestNetwork(request, callback, 15000)
+        try {
+            currentCallback = callback
+            cm.requestNetwork(request, callback, 15000)
+        } catch (e: Exception) {
+            currentCallback = null
+            setStatus(target.bssid, "ошибка подключения", Color.rgb(240, 80, 80))
+            handler.postDelayed({ testNextThroughput() }, 2000)
+        }
     }
 
     private fun runSpeedTest(network: Network, target: MonitorTarget, onDone: () -> Unit) {
