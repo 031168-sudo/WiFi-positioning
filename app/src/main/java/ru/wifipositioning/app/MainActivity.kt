@@ -2,6 +2,7 @@ package ru.wifipositioning.app
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
@@ -47,7 +48,7 @@ class MainActivity:Activity(){
   p.addView(TextView(this).apply{text="━━━━━━";gravity=Gravity.CENTER;setTextColor(Color.rgb(90,100,115));textSize=9f},LinearLayout.LayoutParams(-1,dp(14)))
   val row=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL};val pos=card("ТЕКУЩЕЕ ПОЛОЖЕНИЕ");pos.addView(info("X: — м     Y: — м\nТочность: —"));val sig=card("WI-FI СИГНАЛЫ");r1Rssi=info("R1  Роутер 1     — dBm");r2Rssi=info("R2  Роутер 2     — dBm");sig.addView(r1Rssi);sig.addView(r2Rssi);row.addView(pos,LinearLayout.LayoutParams(0,dp(84),1f));row.addView(sig,LinearLayout.LayoutParams(0,dp(84),1f));p.addView(row)
   val mode=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;setPadding(dp(12),0,dp(10),0);background=bg(Color.rgb(24,30,42),14)};mode.addView(TextView(this).apply{text="◉  ОТСЛЕЖИВАНИЕ\n    Позиция обновляется в реальном времени";setTextColor(Color.WHITE);textSize=11f},LinearLayout.LayoutParams(0,dp(56),1f));mode.addView(TextView(this).apply{text="ПАУЗА";gravity=Gravity.CENTER;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.WHITE);background=bg(Color.rgb(55,105,235),12);setOnClickListener{text=if(text=="ПАУЗА")"ПРОДОЛЖИТЬ" else "ПАУЗА"}},LinearLayout.LayoutParams(dp(118),dp(44)));p.addView(mode,LinearLayout.LayoutParams(-1,dp(62)).apply{topMargin=dp(7)});root.addView(p,FrameLayout.LayoutParams(-1,dp(245),Gravity.BOTTOM).apply{bottomMargin=dp(64)})
-  val n=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER;setBackgroundColor(Color.rgb(8,11,17))};arrayOf("⌖\nКарта","⠿\nКалибровка","⊙\nТочки","⌁\nИстория","☰\nЕщё").forEachIndexed{i,t->n.addView(TextView(this).apply{text=t;textSize=10f;gravity=Gravity.CENTER;setTextColor(if(i==0)Color.rgb(80,150,255) else Color.rgb(150,158,175))},LinearLayout.LayoutParams(0,dp(64),1f))};root.addView(n,FrameLayout.LayoutParams(-1,dp(64),Gravity.BOTTOM))
+  val n=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER;setBackgroundColor(Color.rgb(8,11,17))};arrayOf("⌖\nКарта","⠿\nКалибровка","⊙\nТочки","📶\nWi-Fi","☰\nЕщё").forEachIndexed{i,t->n.addView(TextView(this).apply{text=t;textSize=10f;gravity=Gravity.CENTER;setTextColor(if(i==0)Color.rgb(80,150,255) else Color.rgb(150,158,175));setOnClickListener{if(t.contains("Wi-Fi"))startActivity(Intent(this@MainActivity,WifiScanActivity::class.java))}},LinearLayout.LayoutParams(0,dp(64),1f))};root.addView(n,FrameLayout.LayoutParams(-1,dp(64),Gravity.BOTTOM))
  }
  private fun addRouter(p:GeoPoint,id:String,n:String){map.overlays.add(Marker(map).apply{position=p;title="$id  $n";snippet="Точка Wi-Fi";setAnchor(Marker.ANCHOR_CENTER,Marker.ANCHOR_CENTER)})}
  private fun card(t:String)=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(10),dp(7),dp(10),dp(4));background=bg(Color.rgb(24,30,42),14);addView(TextView(this@MainActivity).apply{text=t;textSize=10f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(145,155,175))})}
