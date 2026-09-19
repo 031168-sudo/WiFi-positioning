@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.widget.*
@@ -216,7 +217,8 @@ class MonitorActivity : Activity() {
                 .setNetworkSpecifier(specifierBuilder.build())
                 .build()
         } catch (e: Exception) {
-            setStatus(target.bssid, "ошибка настройки", Color.rgb(240, 80, 80))
+            Log.e(TAG, "Failed to build network request for ${target.ssid}", e)
+            setStatus(target.bssid, "ошибка: ${e.shortDescription()}", Color.rgb(240, 80, 80))
             handler.postDelayed({ testNextThroughput() }, 2000)
             return
         }
@@ -241,9 +243,16 @@ class MonitorActivity : Activity() {
             cm.requestNetwork(request, callback, 15000)
         } catch (e: Exception) {
             currentCallback = null
-            setStatus(target.bssid, "ошибка подключения", Color.rgb(240, 80, 80))
+            Log.e(TAG, "requestNetwork failed for ${target.ssid}", e)
+            setStatus(target.bssid, "ошибка: ${e.shortDescription()}", Color.rgb(240, 80, 80))
             handler.postDelayed({ testNextThroughput() }, 2000)
         }
+    }
+
+    private fun Exception.shortDescription(): String {
+        val name = javaClass.simpleName
+        val msg = message?.take(60)
+        return if (msg.isNullOrBlank()) name else "$name: $msg"
     }
 
     private fun runSpeedTest(network: Network, target: MonitorTarget, onDone: () -> Unit) {
@@ -303,6 +312,7 @@ class MonitorActivity : Activity() {
     }
 
     companion object {
+        private const val TAG = "WifiNetMonitor"
         private const val SPEED_TEST_URL = "https://speed.cloudflare.com/__down?bytes=10000000"
     }
 }
