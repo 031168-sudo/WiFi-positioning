@@ -284,7 +284,7 @@ class MonitorActivity : Activity() {
 
     private fun Exception.shortDescription(): String {
         val name = javaClass.simpleName
-        val msg = message?.take(60)
+        val msg = message?.take(300)
         return if (msg.isNullOrBlank()) name else "$name: $msg"
     }
 
