@@ -65,7 +65,7 @@ class WifiScanActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), dp(12), dp(12), dp(12))
         }
-        scroll.addView(listContainer, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(listContainer, FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val bottom = LinearLayout(this).apply {

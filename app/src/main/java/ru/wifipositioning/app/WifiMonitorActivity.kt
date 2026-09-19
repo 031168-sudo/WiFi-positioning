@@ -95,7 +95,7 @@ class WifiMonitorActivity : Activity() {
             })
         }
         targets.forEach { t -> list.addView(targetCard(t)) }
-        scroll.addView(list, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(list, FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, i ->
