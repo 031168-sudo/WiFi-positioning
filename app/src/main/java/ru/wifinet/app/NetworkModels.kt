@@ -1,4 +1,4 @@
-package ru.wifipositioning.app
+package ru.wifinet.app
 
 import java.io.Serializable
 

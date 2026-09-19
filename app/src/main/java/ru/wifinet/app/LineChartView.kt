@@ -1,4 +1,4 @@
-package ru.wifipositioning.app
+package ru.wifinet.app
 
 import android.content.Context
 import android.graphics.Canvas

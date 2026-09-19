@@ -5,13 +5,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"/>
-    <application android:theme="@style/AppTheme" android:fitsSystemWindows="true" android:label="WiFi Positioning">
+    <application android:theme="@style/AppTheme" android:fitsSystemWindows="true" android:label="WiFi Net">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".WifiScanActivity" android:exported="false"/>
-        <activity android:name=".WifiMonitorActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
+        <activity android:name=".MonitorActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
     </application>
 </manifest>

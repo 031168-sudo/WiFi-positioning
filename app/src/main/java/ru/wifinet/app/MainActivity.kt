@@ -1,4 +1,4 @@
-package ru.wifipositioning.app
+package ru.wifinet.app
 
 import android.Manifest
 import android.app.Activity
@@ -21,8 +21,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
-/** Scans for nearby Wi-Fi networks and lets the user pick which ones to monitor. */
-class WifiScanActivity : Activity() {
+/** WiFi Net: scans for nearby Wi-Fi networks and lets the user pick which ones to monitor live. */
+class MainActivity : Activity() {
 
     private lateinit var wifi: WifiManager
     private lateinit var listContainer: LinearLayout
@@ -50,20 +50,21 @@ class WifiScanActivity : Activity() {
             setBackgroundColor(Color.argb(245, 10, 13, 20))
         }
         head.addView(TextView(this).apply {
-            text = "←"; textSize = 22f; setTextColor(Color.WHITE)
-            setPadding(0, 0, dp(14), 0)
-            setOnClickListener { finish() }
-        })
-        head.addView(TextView(this).apply {
-            text = "ВЫБОР СЕТЕЙ WI-FI"; textSize = 16f; setTextColor(Color.WHITE)
+            text = "📶  WI-FI NET"; textSize = 18f; setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
         }, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(head, LinearLayout.LayoutParams(-1, dp(56)))
 
+        root.addView(TextView(this).apply {
+            text = "Выберите сети, которые нужно отслеживать"
+            setTextColor(Color.rgb(150, 158, 175)); textSize = 12f
+            setPadding(dp(16), dp(8), dp(16), dp(4))
+        })
+
         val scroll = ScrollView(this)
         listContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(12), dp(12), dp(12))
+            setPadding(dp(12), dp(4), dp(12), dp(12))
         }
         scroll.addView(listContainer, FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -172,11 +173,9 @@ class WifiScanActivity : Activity() {
             text = "${n.level} дБм"; setTextColor(rssiColor(n.level)); textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
         })
-        val wrap = FrameLayout(this)
-        wrap.addView(row, FrameLayout.LayoutParams(-1, -2))
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(wrap, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+            addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         }
     }
 
@@ -199,7 +198,7 @@ class WifiScanActivity : Activity() {
         results: MutableList<MonitorTarget>
     ) {
         if (index >= picked.size) {
-            val intent = Intent(this, WifiMonitorActivity::class.java)
+            val intent = Intent(this, MonitorActivity::class.java)
             intent.putExtra("targets", ArrayList(results))
             startActivity(intent)
             return

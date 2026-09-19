@@ -1,4 +1,4 @@
-package ru.wifipositioning.app
+package ru.wifinet.app
 
 import android.Manifest
 import android.app.Activity
@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * through each target in turn, since Android only reports real speed for a network it is
  * actively bound to.
  */
-class WifiMonitorActivity : Activity() {
+class MonitorActivity : Activity() {
 
     private lateinit var wifi: WifiManager
     private lateinit var cm: ConnectivityManager
