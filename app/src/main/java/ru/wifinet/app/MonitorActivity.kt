@@ -21,6 +21,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.*
 import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -106,8 +107,40 @@ class MonitorActivity : Activity() {
         setContentView(root)
 
         startRssiLoop()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && targets.isNotEmpty()) {
+        startThroughputIfPermitted()
+    }
+
+    /**
+     * Connecting to a specific network via WifiNetworkSpecifier requires the runtime
+     * NEARBY_WIFI_DEVICES permission on Android 13+ (ACCESS_FINE_LOCATION alone is not enough
+     * there, even though it's all regular Wi-Fi scanning needs) — request it here, right before
+     * it's actually needed, instead of failing silently on every network with a SecurityException.
+     */
+    private fun startThroughputIfPermitted() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || targets.isEmpty()) return
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.NEARBY_WIFI_DEVICES)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this, arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), NEARBY_WIFI_PERMISSION_REQUEST
+            )
+            return
+        }
+        testNextThroughput()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != NEARBY_WIFI_PERMISSION_REQUEST) return
+        if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             testNextThroughput()
+        } else {
+            targets.forEach {
+                setStatus(it.bssid, "нет разрешения «Ближайшие устройства»", Color.rgb(240, 80, 80))
+            }
         }
     }
 
@@ -313,6 +346,7 @@ class MonitorActivity : Activity() {
 
     companion object {
         private const val TAG = "WifiNetMonitor"
+        private const val NEARBY_WIFI_PERMISSION_REQUEST = 77
         private const val SPEED_TEST_URL = "https://speed.cloudflare.com/__down?bytes=10000000"
     }
 }
