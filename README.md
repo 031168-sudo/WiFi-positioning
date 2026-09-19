@@ -11,11 +11,17 @@ and then watches them live: signal strength and real throughput, plotted as they
 3. **Monitor** — a dedicated screen streams two live charts per selected network:
    - **Signal strength (RSSI)** — sampled continuously from regular Wi-Fi scans, no
      reconnect needed.
-   - **Throughput (Mbit/s)** — since Android only reports real speed for a network it
-     is actively connected to, the app cycles its own connection through each selected
-     network in turn (Android 10+, via `WifiNetworkSpecifier`) and runs a short
-     download test on it before moving to the next one. Each reconnect triggers the
-     system's own Wi-Fi confirmation dialog.
+   - **Link speed (Mbit/s)** — the negotiated Wi-Fi rate for whichever monitored
+     network the phone is currently connected to. Always available: no reconnect, no
+     approval dialog, and no internet needed behind the access point.
+   - **Download throughput** — reported on the status line when the connected network
+     actually reaches the internet, measured with a short download.
+
+Android only reports real speed for a network the device is actively connected to, so
+the app also tries to connect to each selected network in turn (Android 10+, via
+`WifiNetworkSpecifier`). Some devices refuse those app-initiated connections outright;
+when that happens the app stops retrying and asks you to connect manually, at which
+point that network's charts start filling in.
 
 No map, no calibration points, no fingerprinting — just live per-network signal and
 speed tracking.

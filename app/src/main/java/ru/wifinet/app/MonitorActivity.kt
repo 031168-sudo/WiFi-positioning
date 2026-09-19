@@ -199,7 +199,7 @@ class MonitorActivity : Activity() {
 
         val statusRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         statusRow.addView(TextView(this).apply {
-            text = "СКОРОСТЬ (Мбит/с)"; setTextColor(Color.rgb(145, 155, 175)); textSize = 10f
+            text = "СКОРОСТЬ КАНАЛА (Мбит/с)"; setTextColor(Color.rgb(145, 155, 175)); textSize = 10f
             typeface = Typeface.DEFAULT_BOLD
         }, LinearLayout.LayoutParams(0, -2, 1f))
         val status = TextView(this).apply {
@@ -226,6 +226,7 @@ class MonitorActivity : Activity() {
         handler.post(object : Runnable {
             override fun run() {
                 sampleRssi()
+                sampleLinkSpeed()
                 if (running) handler.postDelayed(this, 3000)
             }
         })
@@ -242,6 +243,27 @@ class MonitorActivity : Activity() {
                 byBssid[t.bssid]?.let { rssiCharts[t.bssid]?.addValue(it.level.toFloat()) }
             }
         } catch (_: SecurityException) {
+        }
+    }
+
+    /**
+     * Negotiated Wi-Fi link rate for whichever monitored network the phone is currently on. This
+     * is the one bandwidth figure that is always available: it needs no reconnect, no approval
+     * dialog, and — unlike a download test — no working internet behind the access point.
+     */
+    @Suppress("DEPRECATION")
+    private fun sampleLinkSpeed() {
+        val connected = connectedBssid() ?: return
+        val linkSpeed = try {
+            wifi.connectionInfo?.linkSpeed ?: return
+        } catch (_: Exception) {
+            return
+        }
+        if (linkSpeed <= 0) return
+        targets.forEach { t ->
+            if (t.bssid.equals(connected, ignoreCase = true)) {
+                throughputCharts[t.bssid]?.addValue(linkSpeed.toFloat())
+            }
         }
     }
 
@@ -280,6 +302,18 @@ class MonitorActivity : Activity() {
         val wifiNetwork = currentWifiNetwork()
         if (wifiNetwork != null && connectedBssid().equals(target.bssid, ignoreCase = true)) {
             CrashLog.logEvent(this, "using already-connected network for ${target.ssid}")
+            // A download test needs the access point to actually reach the internet. When it
+            // doesn't, say so instead of retrying a doomed request every few seconds — the link
+            // speed chart still works and is the meaningful number for such a network.
+            val caps = cm.getNetworkCapabilities(wifiNetwork)
+            val hasInternet = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            if (!hasInternet) {
+                CrashLog.logEvent(this, "no internet on ${target.ssid}, skipping download test")
+                setStatus(target.bssid, "сеть без интернета — только канал", Color.rgb(250, 190, 60))
+                scheduleNextCycle(15000)
+                return
+            }
             setStatus(target.bssid, "тест скорости…", Color.rgb(80, 150, 255))
             try {
                 io.execute { runSpeedTest(wifiNetwork, target) { scheduleNextCycle() } }
@@ -386,6 +420,7 @@ class MonitorActivity : Activity() {
     private fun runSpeedTest(network: Network, target: MonitorTarget, onDone: () -> Unit) {
         CrashLog.logEvent(this, "runSpeedTest start ${target.ssid} (thread=${Thread.currentThread().name})")
         var mbps = -1.0
+        var failure: String? = null
         try {
             val conn = network.openConnection(URL(SPEED_TEST_URL)) as HttpURLConnection
             conn.connectTimeout = 6000
@@ -408,15 +443,17 @@ class MonitorActivity : Activity() {
             if (seconds > 0) mbps = (total * 8.0 / 1_000_000.0) / seconds
         } catch (e: Exception) {
             Log.e(TAG, "Speed test failed for ${target.ssid}", e)
-            CrashLog.logEvent(this, "runSpeedTest FAILED ${target.ssid}: ${e.shortDescription()}")
+            failure = e.shortDescription()
+            CrashLog.logEvent(this, "runSpeedTest FAILED ${target.ssid}: $failure")
         }
         CrashLog.logEvent(this, "runSpeedTest done ${target.ssid} mbps=$mbps")
+        // The chart itself plots link speed (always available); the download result only goes to
+        // the status line, since mixing the two scales in one chart would be meaningless.
         handler.post {
             if (mbps >= 0) {
-                setStatus(target.bssid, "%.1f Мбит/с".format(mbps), Color.rgb(70, 225, 130))
-                throughputCharts[target.bssid]?.addValue(mbps.toFloat())
+                setStatus(target.bssid, "загрузка %.1f Мбит/с".format(mbps), Color.rgb(70, 225, 130))
             } else {
-                setStatus(target.bssid, "ошибка теста", Color.rgb(240, 80, 80))
+                setStatus(target.bssid, "нет загрузки: ${failure ?: "неизвестно"}", Color.rgb(240, 80, 80))
             }
             onDone()
         }
