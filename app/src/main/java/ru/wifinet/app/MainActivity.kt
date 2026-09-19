@@ -35,12 +35,20 @@ class MainActivity : Activity() {
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         CrashLog.install(this)
-        CrashLog.consumeLast(this)?.let { trace ->
-            AlertDialog.Builder(this)
-                .setTitle("Предыдущий запуск завершился ошибкой")
-                .setMessage(trace)
-                .setPositiveButton("OK", null)
-                .show()
+        run {
+            val trace = CrashLog.consumeLast(this)
+            val events = CrashLog.consumeEvents(this)
+            if (trace != null || events != null) {
+                val message = listOfNotNull(
+                    trace?.let { "ИСКЛЮЧЕНИЕ:\n$it" },
+                    events?.let { "ЖУРНАЛ:\n$it" }
+                ).joinToString("\n\n")
+                AlertDialog.Builder(this)
+                    .setTitle("Предыдущий сеанс мониторинга")
+                    .setMessage(message)
+                    .setPositiveButton("OK", null)
+                    .show()
+            }
         }
         window.statusBarColor = Color.rgb(10, 13, 20)
         window.navigationBarColor = Color.rgb(10, 13, 20)

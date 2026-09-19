@@ -55,6 +55,9 @@ class MonitorActivity : Activity() {
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         CrashLog.install(this)
+        CrashLog.logEvent(this, "MonitorActivity onCreate targets=${
+            (intent.getSerializableExtra("targets") as? ArrayList<*>)?.size ?: -1
+        }")
         window.statusBarColor = Color.rgb(10, 13, 20)
         window.navigationBarColor = Color.rgb(10, 13, 20)
         wifi = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
@@ -76,7 +79,10 @@ class MonitorActivity : Activity() {
         head.addView(TextView(this).apply {
             text = "←"; textSize = 22f; setTextColor(Color.WHITE)
             setPadding(0, 0, dp(14), 0)
-            setOnClickListener { finish() }
+            setOnClickListener {
+                CrashLog.logEvent(this@MonitorActivity, "back arrow tapped by user")
+                finish()
+            }
         })
         head.addView(TextView(this).apply {
             text = "МОНИТОРИНГ WI-FI"; textSize = 16f; setTextColor(Color.WHITE)
@@ -226,6 +232,7 @@ class MonitorActivity : Activity() {
         if (!running || targets.isEmpty()) return
         val target = targets[cycleIndex % targets.size]
         cycleIndex++
+        CrashLog.logEvent(this, "testNextThroughput -> ${target.ssid} (${target.bssid})")
         setStatus(target.bssid, "подключение…", Color.rgb(250, 190, 60))
 
         // Requires a non-blank passphrase for any secured network. Missing/invalid credentials,
@@ -261,6 +268,7 @@ class MonitorActivity : Activity() {
         lateinit var callback: ConnectivityManager.NetworkCallback
         callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
+                CrashLog.logEvent(this@MonitorActivity, "onAvailable ${target.ssid}")
                 if (!done.compareAndSet(false, true)) return
                 setStatus(target.bssid, "тест скорости…", Color.rgb(80, 150, 255))
                 // onAvailable can still fire from the system after this screen is on its way
@@ -273,6 +281,7 @@ class MonitorActivity : Activity() {
             }
 
             override fun onUnavailable() {
+                CrashLog.logEvent(this@MonitorActivity, "onUnavailable ${target.ssid}")
                 if (!done.compareAndSet(false, true)) return
                 setStatus(target.bssid, "недоступно", Color.rgb(240, 80, 80))
                 finishCycle(callback)
@@ -280,7 +289,9 @@ class MonitorActivity : Activity() {
         }
         try {
             currentCallback = callback
+            CrashLog.logEvent(this, "requestNetwork calling for ${target.ssid}")
             cm.requestNetwork(request, callback, 15000)
+            CrashLog.logEvent(this, "requestNetwork returned for ${target.ssid}")
         } catch (e: Exception) {
             currentCallback = null
             Log.e(TAG, "requestNetwork failed for ${target.ssid}", e)
@@ -296,6 +307,7 @@ class MonitorActivity : Activity() {
     }
 
     private fun runSpeedTest(network: Network, target: MonitorTarget, onDone: () -> Unit) {
+        CrashLog.logEvent(this, "runSpeedTest start ${target.ssid} (thread=${Thread.currentThread().name})")
         var mbps = -1.0
         try {
             val conn = network.openConnection(URL(SPEED_TEST_URL)) as HttpURLConnection
@@ -317,8 +329,11 @@ class MonitorActivity : Activity() {
             conn.disconnect()
             val seconds = (System.nanoTime() - start) / 1_000_000_000.0
             if (seconds > 0) mbps = (total * 8.0 / 1_000_000.0) / seconds
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e(TAG, "Speed test failed for ${target.ssid}", e)
+            CrashLog.logEvent(this, "runSpeedTest FAILED ${target.ssid}: ${e.shortDescription()}")
         }
+        CrashLog.logEvent(this, "runSpeedTest done ${target.ssid} mbps=$mbps")
         handler.post {
             if (mbps >= 0) {
                 setStatus(target.bssid, "%.1f Мбит/с".format(mbps), Color.rgb(70, 225, 130))
@@ -343,7 +358,30 @@ class MonitorActivity : Activity() {
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
+    // Pure diagnostic breadcrumbs — no exception involved — to tell apart "something in our code
+    // called finish()" from "the OS killed the process outright" when the screen closes on its
+    // own with no crash dialog and no entry in the exception-based crash log.
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        CrashLog.logEvent(this, "system back key/gesture triggered")
+        super.onBackPressed()
+    }
+
+    override fun onPause() {
+        CrashLog.logEvent(this, "MonitorActivity onPause isFinishing=$isFinishing")
+        super.onPause()
+    }
+
+    override fun onStop() {
+        CrashLog.logEvent(this, "MonitorActivity onStop isFinishing=$isFinishing")
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        CrashLog.logEvent(
+            this,
+            "MonitorActivity onDestroy isFinishing=$isFinishing isChangingConfigurations=$isChangingConfigurations"
+        )
         running = false
         handler.removeCallbacksAndMessages(null)
         io.shutdownNow()
